@@ -261,9 +261,18 @@ export default function CrawlScreen({
         <div style={{ padding: '14px 22px', borderBottom: '1px solid #F0F2F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: '#16202E' }}>Activity log</span>
           {log.length > 0 && (
-            <a
-              href={`/api/jobs/${jobId}/log`}
-              download
+            <button
+              onClick={() => {
+                const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+                const lines = log.map((e) => [e.time, e.dot, e.url, e.note].map(escape).join(','));
+                const csv = ['Time,Status,URL,Note', ...lines].join('\n');
+                const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sift-log-${summary.domain}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
               style={{
                 fontSize: 12,
                 fontWeight: 600,
@@ -272,10 +281,13 @@ export default function CrawlScreen({
                 border: '1px solid #E0E4EB',
                 borderRadius: 7,
                 padding: '4px 10px',
+                background: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               ↓ Download log
-            </a>
+            </button>
           )}
         </div>
         <div style={{ maxHeight: 260, overflow: 'auto' }}>
