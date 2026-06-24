@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import robotsParser from 'robots-parser';
 import { getJob, notifyJob, pushLog, elapsedLabel } from './job-store';
-import { computeRefPixels, computeCandPixels, slideNCC, filenameSimilarity } from './similarity';
+import { computeRefPixels, computeCandPixels, slideNCC, computeDHash, hashSimilarity, filenameSimilarity } from './similarity';
 import type { Job, ResultRow } from './types';
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -126,19 +126,32 @@ function extractImageUrls($: cheerio.CheerioAPI, pageUrl: string): string[] {
   return [...urls];
 }
 
-async function scoreImagePixel(job: Job, imgUrl: string): Promise<number> {
-  if (job.referencePixels == null) return -1;
+async function fetchImageBuffer(imgUrl: string): Promise<Buffer | null> {
   try {
     const res = await fetchWithTimeout(imgUrl, FETCH_TIMEOUT_MS);
-    if (!res.ok) return -1;
-    const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType || !contentType.startsWith('image/')) return -1;
-    const buf = Buffer.from(await res.arrayBuffer());
-    const candPixels = await computeCandPixels(buf);
-    return slideNCC(job.referencePixels, candPixels);
+    if (!res.ok) return null;
+    const ct = res.headers.get('content-type') ?? '';
+    if (!ct || !ct.startsWith('image/')) return null;
+    return Buffer.from(await res.arrayBuffer());
   } catch {
-    return -1;
+    return null;
   }
+}
+
+async function scoreImagePixel(job: Job, imgUrl: string): Promise<number> {
+  if (job.referencePixels == null) return -1;
+  const buf = await fetchImageBuffer(imgUrl);
+  if (!buf) return -1;
+  const candPixels = await computeCandPixels(buf);
+  return slideNCC(job.referencePixels, candPixels);
+}
+
+async function scoreImageHash(job: Job, imgUrl: string): Promise<number> {
+  if (job.referenceHash == null) return -1;
+  const buf = await fetchImageBuffer(imgUrl);
+  if (!buf) return -1;
+  const candHash = await computeDHash(buf);
+  return hashSimilarity(job.referenceHash, candHash);
 }
 
 export async function runCrawl(jobId: string): Promise<void> {
@@ -151,15 +164,19 @@ export async function runCrawl(jobId: string): Promise<void> {
   const underPrefix = (pathname: string): boolean =>
     pathPrefix === '' || pathname === pathPrefix || pathname.startsWith(pathPrefix + '/');
 
-  if (method === 'pixel') {
+  if (method === 'pixel' || method === 'hash') {
     if (!referenceImage) {
       job.status = 'error';
-      job.error = 'Pixel comparison requires an uploaded reference image.';
+      job.error = `${method === 'pixel' ? 'Pixel' : 'Hash'} comparison requires an uploaded reference image.`;
       notifyJob(job);
       return;
     }
     try {
-      job.referencePixels = await computeRefPixels(referenceImage.buffer);
+      if (method === 'pixel') {
+        job.referencePixels = await computeRefPixels(referenceImage.buffer);
+      } else {
+        job.referenceHash = await computeDHash(referenceImage.buffer);
+      }
     } catch {
       job.status = 'error';
       job.error = 'Could not process the reference image.';
@@ -335,6 +352,13 @@ export async function runCrawl(jobId: string): Promise<void> {
         let score: number;
         if (method === 'filename') {
           score = filenameSimilarity(referenceFilename, imgUrl);
+        } else if (method === 'hash') {
+          score = await scoreImageHash(job, imgUrl);
+          if (score < 0) {
+            job.seenImages.set(imgUrl, null);
+            job.seenPagesForImage.set(imgUrl, new Set([url]));
+            continue;
+          }
         } else {
           score = await scoreImagePixel(job, imgUrl);
           if (score < 0) {

@@ -63,7 +63,37 @@ export function filenameSimilarity(referenceFilename: string, candidateUrl: stri
   return Math.round(Math.max(0, Math.min(1, blended)) * 100);
 }
 
-// Sliding-window NCC (normalised cross-correlation) sizes.
+// ── Perceptual hash (dHash) ──────────────────────────────────────────────────
+
+/** Compute a 64-bit dHash: resize to 9×8 grayscale, compare adjacent pixel pairs per row. */
+export async function computeDHash(buffer: Buffer): Promise<bigint> {
+  const { data } = await sharp(buffer)
+    .grayscale()
+    .resize(9, 8, { fit: 'fill' })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let hash = 0n;
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      hash = (hash << 1n) | (data[row * 9 + col] > data[row * 9 + col + 1] ? 1n : 0n);
+    }
+  }
+  return hash;
+}
+
+function hammingDistance(a: bigint, b: bigint): number {
+  let xor = a ^ b;
+  let n = 0;
+  while (xor > 0n) { n += Number(xor & 1n); xor >>= 1n; }
+  return n;
+}
+
+/** Hash similarity: 0–100 based on Hamming distance of two 64-bit dHashes. */
+export function hashSimilarity(refHash: bigint, candHash: bigint): number {
+  return Math.round((1 - hammingDistance(refHash, candHash) / 64) * 100);
+}
+
+// ── Sliding-window NCC (normalised cross-correlation) sizes ──────────────────
 // REF_SIZE: reference thumbnail side length.
 // CAND_SIZE: candidate thumbnail side length — larger so the ref kernel can slide over it.
 // A ref image that fills its frame will match a candidate where it appears at any position/crop.

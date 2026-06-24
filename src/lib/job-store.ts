@@ -22,6 +22,7 @@ export function createJob(options: JobOptions): Job {
     results: [],
     cancelRequested: false,
     referencePixels: null,
+    referenceHash: null,
     seenImages: new Map(),
     seenPagesForImage: new Map(),
     listeners: new Set(),

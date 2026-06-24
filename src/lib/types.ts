@@ -1,4 +1,4 @@
-export type Method = 'filename' | 'pixel';
+export type Method = 'filename' | 'pixel' | 'hash';
 
 export type JobStatus = 'running' | 'done' | 'cancelled' | 'error';
 
@@ -50,6 +50,7 @@ export interface Job {
   results: ResultRow[];
   cancelRequested: boolean;
   referencePixels: Float32Array | null;
+  referenceHash: bigint | null;
   seenImages: Map<string, ResultRow | null>; // imageUrl -> matched row template (null if below threshold)
   seenPagesForImage: Map<string, Set<string>>; // imageUrl -> set of pageUrls already recorded
   listeners: Set<(event: { type: string }) => void>;

@@ -259,7 +259,7 @@ export default function ResultsScreen({
                 across <b style={{ color: '#16202E' }}>{matchedPages} pages</b> of{' '}
                 <span style={{ fontFamily: MONO }}>{domain}</span> · for{' '}
                 <span style={{ fontFamily: MONO }}>{ref}</span> ·{' '}
-                {method === 'pixel' ? 'Pixel' : 'Filename'} · ≥ {threshold}%
+                {method === 'pixel' ? 'Pixel' : method === 'hash' ? 'Hash' : 'Filename'} · ≥ {threshold}%
               </p>
             );
           })()}
@@ -311,7 +311,7 @@ export default function ResultsScreen({
           return (
             <>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#2D5BF0', background: '#EDF1FE', borderRadius: 7, padding: '6px 11px' }}>
-                {method === 'pixel' ? 'Pixel' : 'Filename'}
+                {method === 'pixel' ? 'Pixel' : method === 'hash' ? 'Hash' : 'Filename'}
               </span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#5B6573', background: '#F2F4F8', borderRadius: 7, padding: '6px 11px' }}>
                 ≥ {threshold}%
@@ -417,7 +417,7 @@ export default function ResultsScreen({
                   padding: '3px 9px',
                 }}
               >
-                {r.method === 'pixel' ? 'Pixel' : 'Filename'}
+                {r.method === 'pixel' ? 'Pixel' : r.method === 'hash' ? 'Hash' : 'Filename'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>

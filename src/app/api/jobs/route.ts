@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   const method = String(form.get('method') ?? 'pixel') as Method;
-  if (method !== 'filename' && method !== 'pixel') {
+  if (method !== 'filename' && method !== 'pixel' && method !== 'hash') {
     return NextResponse.json({ error: 'Invalid comparison method.' }, { status: 400 });
   }
 
@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
   if (!referenceFilename && !referenceImage) {
     return NextResponse.json({ error: 'Provide a reference image filename or upload.' }, { status: 400 });
   }
-  if (method === 'pixel' && !referenceImage) {
+  if ((method === 'pixel' || method === 'hash') && !referenceImage) {
     return NextResponse.json(
-      { error: 'Pixel comparison requires an uploaded reference image.' },
+      { error: `${method === 'pixel' ? 'Pixel' : 'Hash'} comparison requires an uploaded reference image.` },
       { status: 400 }
     );
   }

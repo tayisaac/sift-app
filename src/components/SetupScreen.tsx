@@ -50,7 +50,7 @@ export default function SetupScreen({
   const domainCheck = state.domain ? parseStartUrl(state.domain) : null;
   const referenceName = state.file?.name ?? (state.filenameText || '');
   const canUsePixel = state.referenceMode === 'upload' && !!state.file;
-  const methodLabel = state.method === 'pixel' ? 'Pixel' : 'Filename';
+  const methodLabel = state.method === 'pixel' ? 'Pixel' : state.method === 'hash' ? 'Hash' : 'Filename';
 
   const sectionStyle: React.CSSProperties = {
     background: '#fff',
@@ -391,7 +391,7 @@ export default function SetupScreen({
             <p style={{ margin: '0 0 14px 30px', fontSize: 13, color: '#8A93A1' }}>
               How Sift decides whether an asset matches your reference.
             </p>
-            <div style={{ marginLeft: 30, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ marginLeft: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               {(
                 [
                   {
@@ -406,6 +406,13 @@ export default function SetupScreen({
                     title: 'Pixel',
                     desc: 'Compares visual content using sliding-window template matching.',
                     best: 'images are cropped, repositioned, or appear as part of a larger image.',
+                    disabled: !canUsePixel,
+                  },
+                  {
+                    key: 'hash' as const,
+                    title: 'Hash',
+                    desc: 'Computes a perceptual hash (dHash) and compares using Hamming distance.',
+                    best: 'images are identical or near-identical with minor quality or size differences.',
                     disabled: !canUsePixel,
                   },
                 ] as const
@@ -463,7 +470,7 @@ export default function SetupScreen({
                     </div>
                     {card.disabled && (
                       <div style={{ marginTop: 7, fontSize: 10.5, color: '#C8901F' }}>
-                        Upload an image to enable pixel comparison.
+                        Upload an image to enable {card.key} comparison.
                       </div>
                     )}
                   </div>
