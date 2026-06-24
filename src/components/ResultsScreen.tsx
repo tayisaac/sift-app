@@ -13,7 +13,7 @@ interface ResultRow {
   score: number;
 }
 
-interface ResultsResponse {
+export interface ResultsResponse {
   rows: ResultRow[];
   total: number;
   page: number;
@@ -73,16 +73,20 @@ function Thumb({ src }: { src: string }) {
 export default function ResultsScreen({
   jobId,
   onNewSearch,
+  initialData,
+  onDataFetched,
 }: {
   jobId: string;
   onNewSearch: () => void;
+  initialData?: ResultsResponse | null;
+  onDataFetched?: (data: ResultsResponse) => void;
 }) {
-  const [data, setData] = useState<ResultsResponse | null>(null);
+  const [data, setData] = useState<ResultsResponse | null>(initialData ?? null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
   const [jobDone, setJobDone] = useState(false);
   const pageSize = 9;
 
@@ -107,7 +111,7 @@ export default function ResultsScreen({
       });
       fetch(`/api/jobs/${jobId}/results?${params.toString()}`)
         .then((r) => r.json())
-        .then((d: ResultsResponse) => { if (!cancelled) setData(d); })
+        .then((d: ResultsResponse) => { if (!cancelled) { setData(d); onDataFetched?.(d); } })
         .finally(() => { if (!cancelled) setLoading(false); });
     };
 

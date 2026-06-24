@@ -7,6 +7,8 @@ import CrawlScreen from '@/components/CrawlScreen';
 import ResultsScreen from '@/components/ResultsScreen';
 import { sanitizeDomain } from '@/lib/validate';
 import type { Screen, SearchSummary } from '@/components/types';
+import type { Snapshot } from '@/components/CrawlScreen';
+import type { ResultsResponse } from '@/components/ResultsScreen';
 
 const DEFAULT_SETUP: SetupState = {
   domain: '',
@@ -30,6 +32,8 @@ export default function Home() {
   const [startError, setStartError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [activeSummary, setActiveSummary] = useState<SearchSummary | null>(null);
+  const [cachedSnap, setCachedSnap] = useState<Snapshot | null>(null);
+  const [cachedResults, setCachedResults] = useState<ResultsResponse | null>(null);
 
   const updateSetup = <K extends keyof SetupState>(key: K, value: SetupState[K]) => {
     setSetup((prev) => {
@@ -96,6 +100,8 @@ export default function Home() {
         return;
       }
       setJobId(data.jobId);
+      setCachedSnap(null);
+      setCachedResults(null);
       setActiveSummary({
         domain: domainResult.domain,
         method: setup.method,
@@ -113,6 +119,8 @@ export default function Home() {
   const handleNewSearch = () => {
     setJobId(null);
     setActiveSummary(null);
+    setCachedSnap(null);
+    setCachedResults(null);
     setScreen('setup');
   };
 
@@ -133,11 +141,22 @@ export default function Home() {
       )}
 
       {screen === 'crawl' && jobId && activeSummary && (
-        <CrawlScreen jobId={jobId} summary={activeSummary} onViewResults={() => setScreen('results')} />
+        <CrawlScreen
+          jobId={jobId}
+          summary={activeSummary}
+          onViewResults={() => setScreen('results')}
+          initialSnap={cachedSnap}
+          onSnapUpdate={setCachedSnap}
+        />
       )}
 
       {screen === 'results' && jobId && (
-        <ResultsScreen jobId={jobId} onNewSearch={handleNewSearch} />
+        <ResultsScreen
+          jobId={jobId}
+          onNewSearch={handleNewSearch}
+          initialData={cachedResults}
+          onDataFetched={setCachedResults}
+        />
       )}
     </div>
   );

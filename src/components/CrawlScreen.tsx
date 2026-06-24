@@ -12,7 +12,7 @@ interface ActivityEvent {
   dot: 'match' | 'plain' | 'warn';
 }
 
-interface Snapshot {
+export interface Snapshot {
   status: 'running' | 'done' | 'cancelled' | 'error';
   error: string | null;
   stats: {
@@ -44,26 +44,35 @@ export default function CrawlScreen({
   jobId,
   summary,
   onViewResults,
+  initialSnap,
+  onSnapUpdate,
 }: {
   jobId: string;
   summary: SearchSummary;
   onViewResults: () => void;
+  initialSnap?: Snapshot | null;
+  onSnapUpdate?: (snap: Snapshot) => void;
 }) {
-  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [snap, setSnap] = useState<Snapshot | null>(initialSnap ?? null);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // If we already have a terminal snapshot (cached from a previous visit), skip reconnecting.
+    if (initialSnap && initialSnap.status !== 'running') return;
+
     const es = new EventSource(`/api/jobs/${jobId}/events`);
     esRef.current = es;
     es.onmessage = (ev) => {
       const data: Snapshot = JSON.parse(ev.data);
       setSnap(data);
+      onSnapUpdate?.(data);
       if (data.status !== 'running') es.close();
     };
     es.onerror = () => {
       es.close();
     };
     return () => es.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
   const cancel = () => {
