@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:#F4F6F9; }
+  ::selection{ background:#D7E1FE; }
+  input[type="range"]{ accent-color:#2D5BF0; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes shimmer{ 0%{ background-position:-220px 0; } 100%{ background-position:220px 0; } }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .row-hover:hover{ background:#F8FAFD !important; }
+  .lift:hover{ box-shadow:0 6px 22px rgba(20,32,60,.10) !important; transform:translateY(-1px); }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:#D7DCE4; border-radius:8px; border:2px solid #F4F6F9; }
+</style>
+</helmet>
+
+<div style="min-height:100vh; background:#F4F6F9; font-family:'Public Sans',system-ui,sans-serif; color:#16202E;">
+
+  <!-- ============ TOP BAR ============ -->
+  <header style="position:sticky; top:0; z-index:30; background:rgba(255,255,255,.86); backdrop-filter:blur(10px); border-bottom:1px solid #E6E9EE;">
+    <div style="max-width:1200px; margin:0 auto; padding:0 28px; height:62px; display:flex; align-items:center; gap:22px;">
+      <div style="display:flex; align-items:center; gap:11px;">
+        <div style="width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,#2D5BF0,#5B7BF5); position:relative; box-shadow:0 3px 10px rgba(45,91,240,.32);">
+          <div style="position:absolute; left:7px; top:7px; width:11px; height:11px; border-radius:3px; background:rgba(255,255,255,.55);"></div>
+          <div style="position:absolute; left:12px; top:12px; width:11px; height:11px; border-radius:3px; background:#fff;"></div>
+        </div>
+        <div style="font-weight:800; font-size:16.5px; letter-spacing:-.02em; color:#16202E;">Sift</div>
+        <div style="font-size:12.5px; color:#8A93A1; font-weight:500; padding-left:11px; border-left:1px solid #E6E9EE;">Image Similarity Finder</div>
+      </div>
+
+      <!-- stepper -->
+      <nav style="margin-left:auto; display:flex; align-items:center; gap:5px;">
+        <div onClick="{{ goSetup }}" style="display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:9px; cursor:pointer; background:{{ setupChipBg }};">
+          <div style="width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700; background:{{ setupDotBg }}; color:{{ setupDotColor }};">1</div>
+          <span style="font-size:13px; font-weight:600; color:{{ setupTextColor }};">Set up</span>
+        </div>
+        <div style="width:18px; height:1.5px; background:#DDE2EA;"></div>
+        <div onClick="{{ goProgress }}" style="display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:9px; cursor:pointer; background:{{ progressChipBg }};">
+          <div style="width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700; background:{{ progressDotBg }}; color:{{ progressDotColor }};">2</div>
+          <span style="font-size:13px; font-weight:600; color:{{ progressTextColor }};">Crawl</span>
+        </div>
+        <div style="width:18px; height:1.5px; background:#DDE2EA;"></div>
+        <div onClick="{{ goResults }}" style="display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:9px; cursor:pointer; background:{{ resultsChipBg }};">
+          <div style="width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700; background:{{ resultsDotBg }}; color:{{ resultsDotColor }};">3</div>
+          <span style="font-size:13px; font-weight:600; color:{{ resultsTextColor }};">Results</span>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+  <main style="max-width:1200px; margin:0 auto; padding:40px 28px 80px;">
+    <div style="margin-bottom:26px;">
+      <h1 style="margin:0 0 7px; font-size:28px; font-weight:800; letter-spacing:-.025em;">Find every copy of an image across a site</h1>
+      <p style="margin:0; font-size:15px; color:#6A7382; max-width:620px; line-height:1.5;">Point Sift at a domain, give it a reference image, and it will crawl every page to surface matching, resized, and renamed assets — ranked by similarity.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start;">
+
+      <!-- LEFT: form -->
+      <div style="display:flex; flex-direction:column; gap:18px;">
+
+        <!-- target website -->
+        <section style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; padding:22px 24px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+            <span style="font-size:11px; font-weight:700; color:#2D5BF0; background:#EDF1FE; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center;">1</span>
+            <h2 style="margin:0; font-size:15.5px; font-weight:700;">Target website</h2>
+          </div>
+          <p style="margin:0 0 14px 30px; font-size:13px; color:#8A93A1;">The root domain Sift will crawl. Only pages on this domain are followed.</p>
+          <div style="margin-left:30px; display:flex; align-items:stretch; border:1.5px solid #2D5BF0; border-radius:10px; overflow:hidden; box-shadow:0 0 0 3px rgba(45,91,240,.10);">
+            <span style="display:flex; align-items:center; padding:0 13px; background:#F6F8FC; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#8A93A1; border-right:1px solid #E6E9EE;">https://</span>
+            <input value="example.com" style="flex:1; border:none; outline:none; padding:11px 14px; font-family:'IBM Plex Mono',monospace; font-size:14px; color:#16202E; background:#fff;" />
+          </div>
+          <div style="margin-left:30px; margin-top:9px; display:flex; align-items:center; gap:6px; font-size:12.5px; color:#1E9E6A;">
+            <span style="width:15px; height:15px; border-radius:50%; background:#E4F5EC; color:#1E9E6A; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800;">✓</span>
+            Valid URL · respects robots.txt
+          </div>
+        </section>
+
+        <!-- reference image -->
+        <section style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; padding:22px 24px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+            <span style="font-size:11px; font-weight:700; color:#2D5BF0; background:#EDF1FE; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center;">2</span>
+            <h2 style="margin:0; font-size:15.5px; font-weight:700;">Reference image</h2>
+          </div>
+          <p style="margin:0 0 14px 30px; font-size:13px; color:#8A93A1;">Upload the image to search for, or enter a filename.</p>
+          <div style="margin-left:30px; display:flex; gap:16px; align-items:stretch;">
+            <!-- uploaded preview -->
+            <div style="width:150px; flex-shrink:0;">
+              <div style="width:150px; height:96px; border-radius:11px; overflow:hidden; border:1px solid #E6E9EE; background:repeating-linear-gradient(135deg,#E8EDF6 0 9px,#EFF2F8 9px 18px); position:relative; display:flex; align-items:flex-end;">
+                <div style="width:100%; padding:6px 8px; background:linear-gradient(transparent,rgba(20,32,60,.55)); font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:#fff;">1440 × 620</div>
+              </div>
+              <div style="display:flex; gap:6px; margin-top:8px;">
+                <button style="flex:1; border:1px solid #E0E4EB; background:#fff; border-radius:7px; padding:5px; font-size:11.5px; font-weight:600; color:#4A5462; cursor:pointer; font-family:inherit;">Replace</button>
+                <button style="border:1px solid #E0E4EB; background:#fff; border-radius:7px; padding:5px 9px; font-size:11.5px; color:#9AA2AE; cursor:pointer; font-family:inherit;">✕</button>
+              </div>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:13.5px; font-weight:500; color:#16202E;">hero-banner.jpg</div>
+              <div style="font-size:12px; color:#8A93A1; margin-top:3px;">JPEG · 248 KB · uploaded</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:13px;">
+                <span style="font-size:10.5px; font-weight:600; color:#6A7382; background:#F2F4F8; border-radius:6px; padding:3px 8px;">JPEG</span>
+                <span style="font-size:10.5px; font-weight:600; color:#6A7382; background:#F2F4F8; border-radius:6px; padding:3px 8px;">PNG</span>
+                <span style="font-size:10.5px; font-weight:600; color:#6A7382; background:#F2F4F8; border-radius:6px; padding:3px 8px;">WebP</span>
+                <span style="font-size:10.5px; font-weight:600; color:#6A7382; background:#F2F4F8; border-radius:6px; padding:3px 8px;">GIF</span>
+                <span style="font-size:10.5px; font-weight:600; color:#6A7382; background:#F2F4F8; border-radius:6px; padding:3px 8px;">SVG</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- comparison method -->
+        <section style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; padding:22px 24px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+            <span style="font-size:11px; font-weight:700; color:#2D5BF0; background:#EDF1FE; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center;">3</span>
+            <h2 style="margin:0; font-size:15.5px; font-weight:700;">Comparison method</h2>
+          </div>
+          <p style="margin:0 0 14px 30px; font-size:13px; color:#8A93A1;">How Sift decides whether an asset matches your reference.</p>
+          <div style="margin-left:30px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div onClick="{{ setFilename }}" class="lift" style="cursor:pointer; border:1.5px solid {{ filenameBorder }}; background:{{ filenameBg }}; border-radius:12px; padding:15px 16px; transition:box-shadow .15s, transform .15s;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:7px;">
+                <span style="font-weight:700; font-size:14px;">Filename</span>
+                <span style="width:17px; height:17px; border-radius:50%; border:1.5px solid {{ filenameRadio }}; display:flex; align-items:center; justify-content:center;"><span style="width:8px; height:8px; border-radius:50%; background:{{ filenameDot }};"></span></span>
+              </div>
+              <p style="margin:0; font-size:12px; line-height:1.45; color:#6A7382;">Matches the filename and path using string similarity (Jaccard / Levenshtein).</p>
+              <div style="margin-top:9px; font-size:11px; color:#9AA2AE; line-height:1.4;"><b style="color:#7B8492;">Best when</b> assets follow a consistent naming convention.</div>
+            </div>
+            <div onClick="{{ setPixel }}" class="lift" style="cursor:pointer; border:1.5px solid {{ pixelBorder }}; background:{{ pixelBg }}; border-radius:12px; padding:15px 16px; transition:box-shadow .15s, transform .15s;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:7px;">
+                <span style="font-weight:700; font-size:14px;">Pixel</span>
+                <span style="width:17px; height:17px; border-radius:50%; border:1.5px solid {{ pixelRadio }}; display:flex; align-items:center; justify-content:center;"><span style="width:8px; height:8px; border-radius:50%; background:{{ pixelDot }};"></span></span>
+              </div>
+              <p style="margin:0; font-size:12px; line-height:1.45; color:#6A7382;">Compares visual content with perceptual hashing (pHash / dHash).</p>
+              <div style="margin-top:9px; font-size:11px; color:#9AA2AE; line-height:1.4;"><b style="color:#7B8492;">Best when</b> images are renamed, resized, or re-encoded.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- threshold -->
+        <section style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; padding:22px 24px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+            <span style="font-size:11px; font-weight:700; color:#2D5BF0; background:#EDF1FE; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center;">4</span>
+            <h2 style="margin:0; font-size:15.5px; font-weight:700;">Similarity threshold</h2>
+          </div>
+          <p style="margin:0 0 16px 30px; font-size:13px; color:#8A93A1;">Only assets scoring at or above this value are returned.</p>
+          <div style="margin-left:30px;">
+            <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:12px;">
+              <span style="font-size:34px; font-weight:800; letter-spacing:-.03em; color:#2D5BF0; font-variant-numeric:tabular-nums;">{{ threshold }}</span>
+              <span style="font-size:18px; font-weight:700; color:#2D5BF0;">%</span>
+              <span style="font-size:12.5px; color:#9AA2AE; margin-left:6px;">minimum match</span>
+            </div>
+            <input type="range" min="0" max="100" value="{{ threshold }}" onChange="{{ setThreshold }}" onInput="{{ setThreshold }}" style="width:100%; height:6px; cursor:pointer;" />
+            <div style="display:flex; justify-content:space-between; margin-top:7px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#AEB5BF;">
+              <span>0% · loose</span><span>50%</span><span>100% · exact</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- advanced -->
+        <section style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; overflow:hidden;">
+          <div onClick="{{ toggleAdvanced }}" style="cursor:pointer; padding:16px 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:9px;">
+              <h2 style="margin:0; font-size:14.5px; font-weight:700; color:#4A5462;">Advanced crawl settings</h2>
+              <span style="font-size:11px; color:#9AA2AE; background:#F2F4F8; border-radius:6px; padding:2px 8px;">optional</span>
+            </div>
+            <span style="font-size:13px; color:#9AA2AE; transform:{{ advancedCaret }}; transition:transform .2s;">▾</span>
+          </div>
+          <sc-if value="{{ showAdvanced }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:4px 24px 22px; border-top:1px solid #F0F2F6;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+              <div>
+                <label style="font-size:12.5px; font-weight:600; color:#4A5462; display:block; margin-bottom:6px;">Max crawl depth</label>
+                <input value="5" style="width:100%; border:1px solid #E0E4EB; border-radius:8px; padding:9px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; outline:none;" />
+              </div>
+              <div>
+                <label style="font-size:12.5px; font-weight:600; color:#4A5462; display:block; margin-bottom:6px;">Max pages</label>
+                <input value="500" style="width:100%; border:1px solid #E0E4EB; border-radius:8px; padding:9px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; outline:none;" />
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:15px; border-top:1px solid #F0F2F6;">
+              <div>
+                <div style="font-size:12.5px; font-weight:600; color:#4A5462;">Parallel crawling</div>
+                <div style="font-size:11.5px; color:#9AA2AE; margin-top:2px;">Fetch multiple pages at once for faster runs.</div>
+              </div>
+              <div style="width:42px; height:24px; border-radius:13px; background:#2D5BF0; position:relative; cursor:pointer;">
+                <div style="position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+        </section>
+      </div>
+
+      <!-- RIGHT: summary -->
+      <aside style="position:sticky; top:84px; background:#fff; border:1px solid #E6E9EE; border-radius:14px; padding:22px 22px 24px;">
+        <h3 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#16202E;">Search summary</h3>
+        <div style="display:flex; flex-direction:column; gap:13px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <span style="font-size:12.5px; color:#8A93A1;">Domain</span>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500; color:#16202E;">example.com</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <span style="font-size:12.5px; color:#8A93A1;">Reference</span>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500; color:#16202E;">hero-banner.jpg</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <span style="font-size:12.5px; color:#8A93A1;">Method</span>
+            <span style="font-size:12px; font-weight:600; color:#2D5BF0; background:#EDF1FE; border-radius:6px; padding:3px 9px;">{{ methodLabel }}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <span style="font-size:12.5px; color:#8A93A1;">Threshold</span>
+            <span style="font-size:12.5px; font-weight:700; color:#16202E;">≥ {{ threshold }}%</span>
+          </div>
+        </div>
+        <button onClick="{{ goProgress }}" class="lift" style="width:100%; margin-top:20px; background:#2D5BF0; color:#fff; border:none; border-radius:10px; padding:13px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 4px 14px rgba(45,91,240,.30); transition:box-shadow .15s, transform .15s; display:flex; align-items:center; justify-content:center; gap:8px;">
+          Start search →
+        </button>
+        <div style="margin-top:16px; padding-top:15px; border-top:1px solid #F0F2F6; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8A93A1;"><span style="color:#1E9E6A;">●</span> All requests over TLS</div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8A93A1;"><span style="color:#1E9E6A;">●</span> Images discarded after session</div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8A93A1;"><span style="color:#1E9E6A;">●</span> Failed fetches retried 3×</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+  </sc-if>
+
+  <!-- ============ PROGRESS SCREEN ============ -->
+  <sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
+  <main style="max-width:1000px; margin:0 auto; padding:48px 28px 80px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:30px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <span style="width:9px; height:9px; border-radius:50%; background:#2D5BF0; animation:pulse 1.3s ease-in-out infinite;"></span>
+          <span style="font-size:12.5px; font-weight:700; color:#2D5BF0; letter-spacing:.04em; text-transform:uppercase;">Crawling</span>
+        </div>
+        <h1 style="margin:0; font-size:27px; font-weight:800; letter-spacing:-.025em; font-family:'IBM Plex Mono',monospace;">example.com</h1>
+        <p style="margin:7px 0 0; font-size:14px; color:#6A7382;">Looking for <b style="color:#16202E;">hero-banner.jpg</b> · Pixel similarity · ≥ 80%</p>
+      </div>
+      <button style="border:1px solid #E0E4EB; background:#fff; color:#5B6573; border-radius:9px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">Cancel</button>
+    </div>
+
+    <!-- progress bar -->
+    <div style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; padding:24px 26px; margin-bottom:20px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:13px;">
+        <div style="font-size:14px; font-weight:600; color:#16202E;">Crawling pages</div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; color:#6A7382;"><b style="color:#16202E; font-size:15px;">147</b> / ~320 pages · 46%</div>
+      </div>
+      <div style="height:10px; border-radius:6px; background:#EDEFF3; overflow:hidden;">
+        <div style="width:46%; height:100%; border-radius:6px; background:linear-gradient(90deg,#2D5BF0,#6488F7); background-size:220px 100%; animation:shimmer 1.1s linear infinite;"></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:9px; margin-top:14px; font-size:12.5px; color:#8A93A1;">
+        <span style="width:14px; height:14px; border:2px solid #DDE2EA; border-top-color:#2D5BF0; border-radius:50%; display:inline-block; animation:spin .7s linear infinite;"></span>
+        Scanning <span style="font-family:'IBM Plex Mono',monospace; color:#5B6573;">/blog/2025/spring-collection</span>
+      </div>
+    </div>
+
+    <!-- stat cards -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;">
+      <div style="background:#fff; border:1px solid #E6E9EE; border-radius:13px; padding:18px 20px;">
+        <div style="font-size:12px; color:#8A93A1; font-weight:500;">Pages crawled</div>
+        <div style="font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:5px; font-variant-numeric:tabular-nums;">147</div>
+      </div>
+      <div style="background:#fff; border:1px solid #E6E9EE; border-radius:13px; padding:18px 20px;">
+        <div style="font-size:12px; color:#8A93A1; font-weight:500;">Images found</div>
+        <div style="font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:5px; font-variant-numeric:tabular-nums;">2,318</div>
+      </div>
+      <div style="background:#fff; border:1px solid #E6E9EE; border-radius:13px; padding:18px 20px;">
+        <div style="font-size:12px; color:#8A93A1; font-weight:500;">Matches so far</div>
+        <div style="font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:5px; color:#1E9E6A; font-variant-numeric:tabular-nums;">31</div>
+      </div>
+      <div style="background:#fff; border:1px solid #E6E9EE; border-radius:13px; padding:18px 20px;">
+        <div style="font-size:12px; color:#8A93A1; font-weight:500;">Elapsed</div>
+        <div style="font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:5px; font-variant-numeric:tabular-nums; font-family:'IBM Plex Mono',monospace;">2:14</div>
+      </div>
+    </div>
+
+    <!-- live feed -->
+    <div style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; overflow:hidden;">
+      <div style="padding:14px 22px; border-bottom:1px solid #F0F2F6; font-size:13px; font-weight:700; color:#16202E;">Activity log</div>
+      <div style="max-height:260px; overflow:auto;">
+        <sc-for list="{{ feed }}" as="ev" hint-placeholder-count="6">
+          <div style="display:flex; align-items:center; gap:14px; padding:11px 22px; border-bottom:1px solid #F4F6F9; font-family:'IBM Plex Mono',monospace; font-size:12.5px;">
+            <span style="color:#AEB5BF; width:54px; flex-shrink:0;">{{ ev.time }}</span>
+            <span style="width:8px; height:8px; border-radius:50%; background:{{ ev.dot }}; flex-shrink:0;"></span>
+            <span style="color:#5B6573; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ ev.url }}</span>
+            <span style="color:#8A93A1; flex-shrink:0;">{{ ev.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:22px;">
+      <button onClick="{{ goResults }}" class="lift" style="background:#2D5BF0; color:#fff; border:none; border-radius:10px; padding:12px 22px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 4px 14px rgba(45,91,240,.30); transition:box-shadow .15s, transform .15s;">View partial results →</button>
+    </div>
+  </main>
+  </sc-if>
+
+  <!-- ============ RESULTS SCREEN ============ -->
+  <sc-if value="{{ isResults }}" hint-placeholder-val="{{ false }}">
+  <main style="max-width:1200px; margin:0 auto; padding:40px 28px 80px;">
+
+    <!-- header -->
+    <div style="display:flex; align-items:center; gap:18px; margin-bottom:24px; flex-wrap:wrap;">
+      <div style="width:74px; height:50px; border-radius:9px; overflow:hidden; border:1px solid #E6E9EE; flex-shrink:0; background:repeating-linear-gradient(135deg,#E8EDF6 0 8px,#EFF2F8 8px 16px);"></div>
+      <div style="flex:1; min-width:240px;">
+        <h1 style="margin:0; font-size:24px; font-weight:800; letter-spacing:-.025em;">238 matching images</h1>
+        <p style="margin:5px 0 0; font-size:13.5px; color:#6A7382;">across <b style="color:#16202E;">64 pages</b> of <span style="font-family:'IBM Plex Mono',monospace;">example.com</span> · for <span style="font-family:'IBM Plex Mono',monospace;">hero-banner.jpg</span> · Pixel · ≥ {{ threshold }}%</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="lift" style="display:flex; align-items:center; gap:7px; border:1px solid #E0E4EB; background:#fff; color:#4A5462; border-radius:9px; padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:box-shadow .15s, transform .15s;">↓ CSV</button>
+        <button class="lift" style="display:flex; align-items:center; gap:7px; border:1px solid #E0E4EB; background:#fff; color:#4A5462; border-radius:9px; padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:box-shadow .15s, transform .15s;">↓ JSON</button>
+      </div>
+    </div>
+
+    <!-- toolbar -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:220px; max-width:320px; border:1px solid #E0E4EB; background:#fff; border-radius:9px; padding:8px 12px;">
+        <span style="color:#AEB5BF; font-size:14px;">⌕</span>
+        <input placeholder="Filter by URL…" style="border:none; outline:none; flex:1; font-size:13px; font-family:inherit; color:#16202E; background:transparent;" />
+      </div>
+      <span style="font-size:12px; font-weight:600; color:#2D5BF0; background:#EDF1FE; border-radius:7px; padding:6px 11px;">Pixel</span>
+      <span style="font-size:12px; font-weight:600; color:#5B6573; background:#F2F4F8; border-radius:7px; padding:6px 11px;">≥ {{ threshold }}% &nbsp;✕</span>
+      <div style="margin-left:auto; font-size:12.5px; color:#8A93A1;">Showing <b style="color:#16202E;">1–9</b> of 238</div>
+    </div>
+
+    <!-- table -->
+    <div style="background:#fff; border:1px solid #E6E9EE; border-radius:14px; overflow:hidden;">
+      <div style="display:grid; grid-template-columns:64px 1.4fr 1.6fr 92px 150px; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid #EDEFF3; background:#FAFBFD; font-size:11px; font-weight:700; color:#8A93A1; text-transform:uppercase; letter-spacing:.05em;">
+        <div>Image</div>
+        <div>Image URL</div>
+        <div>Page URL</div>
+        <div>Method</div>
+        <div onClick="{{ toggleSort }}" style="cursor:pointer; display:flex; align-items:center; justify-content:flex-end; gap:5px; color:#2D5BF0;">Similarity <span style="font-size:9px;">{{ sortArrow }}</span></div>
+      </div>
+      <sc-for list="{{ results }}" as="r" hint-placeholder-count="9">
+        <div class="row-hover" style="display:grid; grid-template-columns:64px 1.4fr 1.6fr 92px 150px; align-items:center; gap:14px; padding:13px 20px; border-bottom:1px solid #F4F6F9; transition:background .12s;">
+          <div style="width:44px; height:44px; border-radius:8px; overflow:hidden; border:1px solid #E6E9EE; background:{{ r.tint }}; position:relative;">
+            <div style="position:absolute; inset:0; background:repeating-linear-gradient(135deg,rgba(255,255,255,.45) 0 5px,transparent 5px 10px);"></div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#16202E; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.img }}</div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#6A7382; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.page }}</div>
+          <div><span style="font-size:11px; font-weight:600; color:#5B6573; background:#F2F4F8; border-radius:6px; padding:3px 9px;">{{ r.method }}</span></div>
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">
+            <div style="width:58px; height:6px; border-radius:4px; background:#EDEFF3; overflow:hidden;">
+              <div style="height:100%; border-radius:4px; width:{{ r.barWidth }}; background:{{ r.barColor }};"></div>
+            </div>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; color:{{ r.barColor }}; width:38px; text-align:right; font-variant-numeric:tabular-nums;">{{ r.scoreText }}</span>
+          </div>
+        </div>
+      </sc-for>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#FAFBFD;">
+        <span style="font-size:12.5px; color:#8A93A1;">9 of 238 matches</span>
+        <div style="display:flex; gap:6px;">
+          <button style="border:1px solid #E0E4EB; background:#fff; border-radius:7px; padding:6px 11px; font-size:12.5px; color:#AEB5BF; cursor:default; font-family:inherit;">‹ Prev</button>
+          <button style="border:1px solid #2D5BF0; background:#2D5BF0; border-radius:7px; padding:6px 11px; font-size:12.5px; color:#fff; font-weight:600; cursor:pointer; font-family:inherit;">1</button>
+          <button style="border:1px solid #E0E4EB; background:#fff; border-radius:7px; padding:6px 11px; font-size:12.5px; color:#5B6573; cursor:pointer; font-family:inherit;">2</button>
+          <button style="border:1px solid #E0E4EB; background:#fff; border-radius:7px; padding:6px 11px; font-size:12.5px; color:#5B6573; cursor:pointer; font-family:inherit;">3</button>
+          <button style="border:1px solid #E0E4EB; background:#fff; border-radius:7px; padding:6px 11px; font-size:12.5px; color:#5B6573; cursor:pointer; font-family:inherit;">Next ›</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:center; margin-top:26px;">
+      <button onClick="{{ goSetup }}" style="border:1px solid #E0E4EB; background:#fff; color:#5B6573; border-radius:10px; padding:11px 22px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit;">＋ New search</button>
+    </div>
+  </main>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  state = { screen: 'setup', method: 'pixel', threshold: 80, sortDir: 'desc', showAdvanced: false };
+
+  rawRows() {
+    return [
+      { id: 1, img: '/assets/hero-banner.jpg',        page: '/',                       score: 99, tint: '#E8EDF6' },
+      { id: 2, img: '/assets/hero-banner.jpg',        page: '/about',                  score: 99, tint: '#E8EDF6' },
+      { id: 3, img: '/img/banner-hero@2x.jpg',        page: '/pricing',                score: 96, tint: '#E7F1EC' },
+      { id: 4, img: '/media/hero-banner-large.webp',  page: '/blog',                   score: 93, tint: '#F1EAF6' },
+      { id: 5, img: '/static/hero_banner_v2.jpg',     page: '/products',               score: 89, tint: '#F6EFE7' },
+      { id: 6, img: '/uploads/spring-hero.jpg',       page: '/landing/spring',         score: 86, tint: '#E7EFF3' },
+      { id: 7, img: '/assets/hero-banner-old.png',    page: '/press',                  score: 84, tint: '#F2ECE9' },
+      { id: 8, img: '/img/header-bg.jpg',             page: '/careers',                score: 82, tint: '#ECEFF6' },
+      { id: 9, img: '/media/hero-thumb.jpg',          page: '/blog/launch-recap',      score: 80, tint: '#EAF0EC' }
+    ];
+  }
+
+  feedData() {
+    return [
+      { time: '2:14', url: '/blog/2025/spring-collection', note: '18 imgs · 2 match', dot: '#1E9E6A' },
+      { time: '2:11', url: '/products/outerwear',           note: '24 imgs',          dot: '#C4CAD3' },
+      { time: '2:08', url: '/products',                     note: '31 imgs · 1 match', dot: '#1E9E6A' },
+      { time: '2:04', url: '/lookbook/2025',                note: '42 imgs',          dot: '#C4CAD3' },
+      { time: '2:01', url: '/about',                        note: '9 imgs · 1 match',  dot: '#1E9E6A' },
+      { time: '1:57', url: '/journal/behind-the-seams',     note: '15 imgs',          dot: '#C4CAD3' },
+      { time: '1:52', url: '/pricing',                      note: '6 imgs · 1 match',  dot: '#1E9E6A' },
+      { time: '1:48', url: '/stores/find-a-store',          note: '3 imgs · retry 1',  dot: '#C8901F' }
+    ];
+  }
+
+  barColorFor(score) {
+    if (score >= 90) return '#1E9E6A';
+    if (score >= 80) return '#2D5BF0';
+    return '#C8901F';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const methodLabel = s.method === 'pixel' ? 'Pixel' : 'Filename';
+
+    let results = this.rawRows().map(r => ({
+      ...r,
+      method: methodLabel,
+      scoreText: r.score + '%',
+      barWidth: r.score + '%',
+      barColor: this.barColorFor(r.score)
+    }));
+    results.sort((a, b) => s.sortDir === 'desc' ? b.score - a.score : a.score - b.score);
+
+    const active = '#2D5BF0', idle = '#9AA2AE';
+    const stepStyle = (name) => {
+      const on = s.screen === name;
+      return {
+        chip: on ? '#EDF1FE' : 'transparent',
+        dotBg: on ? '#2D5BF0' : '#EDEFF3',
+        dotColor: on ? '#fff' : '#9AA2AE',
+        text: on ? '#2D5BF0' : '#8A93A1'
+      };
+    };
+    const su = stepStyle('setup'), pr = stepStyle('progress'), re = stepStyle('results');
+
+    const pixelSel = s.method === 'pixel';
+    const fileSel = s.method === 'filename';
+
+    return {
+      // screen flags
+      isSetup: s.screen === 'setup',
+      isProgress: s.screen === 'progress',
+      isResults: s.screen === 'results',
+
+      // nav
+      goSetup: () => this.setState({ screen: 'setup' }),
+      goProgress: () => this.setState({ screen: 'progress' }),
+      goResults: () => this.setState({ screen: 'results' }),
+
+      // stepper styles
+      setupChipBg: su.chip, setupDotBg: su.dotBg, setupDotColor: su.dotColor, setupTextColor: su.text,
+      progressChipBg: pr.chip, progressDotBg: pr.dotBg, progressDotColor: pr.dotColor, progressTextColor: pr.text,
+      resultsChipBg: re.chip, resultsDotBg: re.dotBg, resultsDotColor: re.dotColor, resultsTextColor: re.text,
+
+      // method selection
+      setPixel: () => this.setState({ method: 'pixel' }),
+      setFilename: () => this.setState({ method: 'filename' }),
+      methodLabel,
+      pixelBorder: pixelSel ? active : '#E6E9EE',
+      pixelBg: pixelSel ? '#F6F9FF' : '#fff',
+      pixelRadio: pixelSel ? active : '#CBD2DC',
+      pixelDot: pixelSel ? active : 'transparent',
+      filenameBorder: fileSel ? active : '#E6E9EE',
+      filenameBg: fileSel ? '#F6F9FF' : '#fff',
+      filenameRadio: fileSel ? active : '#CBD2DC',
+      filenameDot: fileSel ? active : 'transparent',
+
+      // threshold
+      threshold: s.threshold,
+      setThreshold: (e) => this.setState({ threshold: Number(e.target.value) }),
+
+      // advanced
+      showAdvanced: s.showAdvanced,
+      toggleAdvanced: () => this.setState({ showAdvanced: !s.showAdvanced }),
+      advancedCaret: s.showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)',
+
+      // results
+      results,
+      toggleSort: () => this.setState({ sortDir: s.sortDir === 'desc' ? 'asc' : 'desc' }),
+      sortArrow: s.sortDir === 'desc' ? '▼' : '▲',
+
+      // progress feed
+      feed: this.feedData()
+    };
+  }
+}
+</script>
+</body>
+</html>

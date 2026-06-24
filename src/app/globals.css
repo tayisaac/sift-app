@@ -1,0 +1,72 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #f4f6f9;
+  font-family: var(--font-public-sans), system-ui, sans-serif;
+  color: #16202e;
+}
+
+::selection {
+  background: #d7e1fe;
+}
+
+input[type='range'] {
+  accent-color: #2d5bf0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -220px 0;
+  }
+  100% {
+    background-position: 220px 0;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.row-hover:hover {
+  background: #f8fafd !important;
+}
+
+.lift {
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.lift:hover {
+  box-shadow: 0 6px 22px rgba(20, 32, 60, 0.1) !important;
+  transform: translateY(-1px);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d7dce4;
+  border-radius: 8px;
+  border: 2px solid #f4f6f9;
+}
