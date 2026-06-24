@@ -2,6 +2,7 @@ import { getJob, elapsedLabel } from '@/lib/job-store';
 import type { Job } from '@/lib/types';
 
 function snapshot(job: Job) {
+  const terminal = job.status !== 'running';
   return {
     status: job.status,
     error: job.error ?? null,
@@ -15,6 +16,14 @@ function snapshot(job: Job) {
     log: job.log.slice(-30).reverse(),
     resultsCount: job.results.length,
     maxPages: job.options.maxPages,
+    // Include full results only on the terminal event so no extra HTTP fetch is needed.
+    results: terminal ? job.results.map((r) => ({
+      id: r.id, imageUrl: r.imageUrl, pageUrl: r.pageUrl, method: r.method, score: r.score,
+    })) : undefined,
+    domain: terminal ? job.options.domain : undefined,
+    referenceFilename: terminal ? job.options.referenceFilename : undefined,
+    method: terminal ? job.options.method : undefined,
+    threshold: terminal ? job.options.threshold : undefined,
   };
 }
 

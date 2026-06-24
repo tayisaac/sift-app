@@ -7,7 +7,7 @@ import CrawlScreen from '@/components/CrawlScreen';
 import ResultsScreen from '@/components/ResultsScreen';
 import { parseStartUrl } from '@/lib/validate';
 import type { Screen, SearchSummary } from '@/components/types';
-import type { Snapshot } from '@/components/CrawlScreen';
+import type { Snapshot, SnapshotResult } from '@/components/CrawlScreen';
 import type { ResultRow } from '@/components/ResultsScreen';
 
 const DEFAULT_SETUP: SetupState = {
@@ -116,16 +116,14 @@ export default function Home() {
     }
   };
 
-  const prefetchResults = (id: string) => {
-    fetch(`/api/jobs/${id}/results?sort=desc&q=&page=1&pageSize=10000`)
-      .then((r) => r.json())
-      .then((d: { rows?: ResultRow[] }) => { if (d.rows) setCachedAllRows(d.rows); })
-      .catch(() => {});
+  const handleSnapUpdate = (snap: Snapshot) => {
+    setCachedSnap(snap);
   };
 
-  const handleSnapUpdate = (snap: Snapshot, id: string) => {
-    setCachedSnap(snap);
-    if (snap.status !== 'running') prefetchResults(id);
+  const handleResults = (rows: SnapshotResult[], meta: { domain: string; referenceFilename: string; method: string; threshold: number }) => {
+    setCachedAllRows(rows as ResultRow[]);
+    // Keep activeSummary in sync with what the server resolved (handles path-scoped URLs).
+    setActiveSummary((prev) => prev ? { ...prev, domain: meta.domain, referenceFilename: meta.referenceFilename, method: meta.method as 'pixel' | 'filename', threshold: meta.threshold } : prev);
   };
 
   const handleNewSearch = () => {
@@ -158,7 +156,8 @@ export default function Home() {
           summary={activeSummary}
           onViewResults={() => setScreen('results')}
           initialSnap={cachedSnap}
-          onSnapUpdate={(snap) => jobId && handleSnapUpdate(snap, jobId)}
+          onSnapUpdate={handleSnapUpdate}
+          onResults={handleResults}
         />
       )}
 

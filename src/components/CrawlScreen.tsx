@@ -12,6 +12,14 @@ interface ActivityEvent {
   dot: 'match' | 'plain' | 'warn';
 }
 
+export interface SnapshotResult {
+  id: number;
+  imageUrl: string;
+  pageUrl: string;
+  method: string;
+  score: number;
+}
+
 export interface Snapshot {
   status: 'running' | 'done' | 'cancelled' | 'error';
   error: string | null;
@@ -25,6 +33,12 @@ export interface Snapshot {
   log: ActivityEvent[];
   resultsCount: number;
   maxPages: number;
+  // Present only on the terminal event:
+  results?: SnapshotResult[];
+  domain?: string;
+  referenceFilename?: string;
+  method?: string;
+  threshold?: number;
 }
 
 const DOT_COLOR: Record<ActivityEvent['dot'], string> = {
@@ -46,12 +60,14 @@ export default function CrawlScreen({
   onViewResults,
   initialSnap,
   onSnapUpdate,
+  onResults,
 }: {
   jobId: string;
   summary: SearchSummary;
   onViewResults: () => void;
   initialSnap?: Snapshot | null;
   onSnapUpdate?: (snap: Snapshot) => void;
+  onResults?: (rows: SnapshotResult[], meta: { domain: string; referenceFilename: string; method: string; threshold: number }) => void;
 }) {
   const [snap, setSnap] = useState<Snapshot | null>(initialSnap ?? null);
   const esRef = useRef<EventSource | null>(null);
@@ -66,7 +82,17 @@ export default function CrawlScreen({
       const data: Snapshot = JSON.parse(ev.data);
       setSnap(data);
       onSnapUpdate?.(data);
-      if (data.status !== 'running') es.close();
+      if (data.status !== 'running') {
+        es.close();
+        if (data.results && data.domain != null && data.referenceFilename != null && data.method != null && data.threshold != null) {
+          onResults?.(data.results, {
+            domain: data.domain,
+            referenceFilename: data.referenceFilename,
+            method: data.method,
+            threshold: data.threshold,
+          });
+        }
+      }
     };
     es.onerror = () => {
       es.close();
