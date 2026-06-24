@@ -111,7 +111,7 @@ export default function ResultsScreen({
       });
       fetch(`/api/jobs/${jobId}/results?${params.toString()}`)
         .then((r) => r.json())
-        .then((d: ResultsResponse) => { if (!cancelled) { setData(d); onDataFetched?.(d); } })
+        .then((d: ResultsResponse) => { if (!cancelled && d.rows) { setData(d); onDataFetched?.(d); } })
         .finally(() => { if (!cancelled) setLoading(false); });
     };
 
@@ -142,7 +142,7 @@ export default function ResultsScreen({
         fetch(`/api/jobs/${jobId}/results?${params.toString()}`).then((r) => r.json()),
         fetch(`/api/jobs/${jobId}`).then((r) => r.json()),
       ]).then(([results, status]: [ResultsResponse, { status: string }]) => {
-        setData(results);
+        if (results.rows) { setData(results); onDataFetched?.(results); }
         if (status.status !== 'running') {
           setJobDone(true);
           clearInterval(interval);

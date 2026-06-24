@@ -116,6 +116,18 @@ export default function Home() {
     }
   };
 
+  const prefetchResults = (id: string) => {
+    fetch(`/api/jobs/${id}/results?sort=desc&q=&page=1&pageSize=9`)
+      .then((r) => r.json())
+      .then((d: ResultsResponse) => { if (d.rows) setCachedResults(d); })
+      .catch(() => {});
+  };
+
+  const handleSnapUpdate = (snap: Snapshot, id: string) => {
+    setCachedSnap(snap);
+    if (snap.status !== 'running') prefetchResults(id);
+  };
+
   const handleNewSearch = () => {
     setJobId(null);
     setActiveSummary(null);
@@ -146,7 +158,7 @@ export default function Home() {
           summary={activeSummary}
           onViewResults={() => setScreen('results')}
           initialSnap={cachedSnap}
-          onSnapUpdate={setCachedSnap}
+          onSnapUpdate={(snap) => jobId && handleSnapUpdate(snap, jobId)}
         />
       )}
 
