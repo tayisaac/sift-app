@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Method } from './types';
 
 const MONO = 'var(--font-ibm-plex-mono), monospace';
@@ -12,6 +12,8 @@ interface ResultRow {
   method: Method;
   score: number;
 }
+
+export type { ResultRow };
 
 export interface ResultsResponse {
   rows: ResultRow[];
@@ -73,22 +75,37 @@ function Thumb({ src }: { src: string }) {
 export default function ResultsScreen({
   jobId,
   onNewSearch,
-  initialData,
-  onDataFetched,
+  allRows,
+  summary,
 }: {
   jobId: string;
   onNewSearch: () => void;
-  initialData?: ResultsResponse | null;
-  onDataFetched?: (data: ResultsResponse) => void;
+  allRows?: ResultRow[] | null;
+  summary?: { domain: string; method: string; threshold: number; referenceFilename: string } | null;
 }) {
-  const [data, setData] = useState<ResultsResponse | null>(initialData ?? null);
+  const [data, setData] = useState<ResultsResponse | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(!initialData);
-  const [jobDone, setJobDone] = useState(false);
+  const [loading, setLoading] = useState(!allRows);
+  const [jobDone, setJobDone] = useState(!!allRows);
   const pageSize = 9;
+
+  // When all rows are cached client-side, filter/sort/paginate without server calls.
+  const clientFiltered = useMemo(() => {
+    if (!allRows) return null;
+    const needle = debouncedQuery.toLowerCase();
+    const filtered = needle
+      ? allRows.filter((r) => r.imageUrl.toLowerCase().includes(needle) || r.pageUrl.toLowerCase().includes(needle))
+      : allRows;
+    return [...filtered].sort((a, b) => sortDir === 'desc' ? b.score - a.score : a.score - b.score);
+  }, [allRows, debouncedQuery, sortDir]);
+
+  const clientPageRows = useMemo(() => {
+    if (!clientFiltered) return null;
+    return clientFiltered.slice((page - 1) * pageSize, page * pageSize);
+  }, [clientFiltered, page]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -100,37 +117,32 @@ export default function ResultsScreen({
   }, [query]);
 
   useEffect(() => {
+    if (allRows) return; // have full data client-side, skip server fetch
+
     let cancelled = false;
 
-    const fetchResults = () => {
-      const params = new URLSearchParams({
-        sort: sortDir,
-        q: debouncedQuery,
-        page: String(page),
-        pageSize: String(pageSize),
-      });
-      fetch(`/api/jobs/${jobId}/results?${params.toString()}`)
-        .then((r) => r.json())
-        .then((d: ResultsResponse) => { if (!cancelled && d.rows) { setData(d); onDataFetched?.(d); } })
-        .finally(() => { if (!cancelled) setLoading(false); });
-    };
+    const params = new URLSearchParams({
+      sort: sortDir,
+      q: debouncedQuery,
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    fetch(`/api/jobs/${jobId}/results?${params.toString()}`)
+      .then((r) => r.json())
+      .then((d: ResultsResponse) => { if (!cancelled && d.rows) setData(d); })
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-    const fetchStatus = () => {
-      fetch(`/api/jobs/${jobId}`)
-        .then((r) => r.json())
-        .then((d: { status: string }) => { if (!cancelled && d.status !== 'running') setJobDone(true); })
-        .catch(() => {});
-    };
-
-    fetchResults();
-    fetchStatus();
+    fetch(`/api/jobs/${jobId}`)
+      .then((r) => r.json())
+      .then((d: { status: string }) => { if (!cancelled && d.status !== 'running') setJobDone(true); })
+      .catch(() => {});
 
     return () => { cancelled = true; };
-  }, [jobId, sortDir, debouncedQuery, page]);
+  }, [jobId, sortDir, debouncedQuery, page, allRows]);
 
-  // Poll for new results every 2s while crawl is in progress.
+  // Poll for new results every 2s while crawl is in progress (server-side path only).
   useEffect(() => {
-    if (jobDone) return;
+    if (jobDone || allRows) return;
     const interval = setInterval(() => {
       const params = new URLSearchParams({
         sort: sortDir,
@@ -142,7 +154,7 @@ export default function ResultsScreen({
         fetch(`/api/jobs/${jobId}/results?${params.toString()}`).then((r) => r.json()),
         fetch(`/api/jobs/${jobId}`).then((r) => r.json()),
       ]).then(([results, status]: [ResultsResponse, { status: string }]) => {
-        if (results.rows) { setData(results); onDataFetched?.(results); }
+        if (results.rows) setData(results);
         if (status.status !== 'running') {
           setJobDone(true);
           clearInterval(interval);
@@ -150,7 +162,7 @@ export default function ResultsScreen({
       }).catch(() => {});
     }, 2000);
     return () => clearInterval(interval);
-  }, [jobId, jobDone, sortDir, debouncedQuery, page]);
+  }, [jobId, jobDone, allRows, sortDir, debouncedQuery, page]);
 
   const toggleSort = () => {
     setLoading(true);
@@ -163,6 +175,29 @@ export default function ResultsScreen({
   };
 
   const exportAs = (format: 'csv' | 'json') => {
+    const exportRows = clientFiltered ?? allRows;
+    if (exportRows) {
+      const domain = data?.domain ?? jobId;
+      const blob =
+        format === 'json'
+          ? new Blob(
+              [JSON.stringify(exportRows.map((r) => ({ imageUrl: r.imageUrl, pageUrl: r.pageUrl, method: r.method, similarity: r.score })), null, 2)],
+              { type: 'application/json' }
+            )
+          : (() => {
+              const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+              const lines = exportRows.map((r) => [r.imageUrl, r.pageUrl, r.method, String(r.score)].map(esc).join(','));
+              return new Blob([['Image URL,Page URL,Method,Similarity', ...lines].join('\n')], { type: 'text/csv' });
+            })();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sift-results-${domain}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    // Fallback: let the server generate it (live crawl, prefetch not yet complete).
     const params = new URLSearchParams({ format, sort: sortDir, q: debouncedQuery });
     const a = document.createElement('a');
     a.href = `/api/jobs/${jobId}/export?${params.toString()}`;
@@ -172,8 +207,8 @@ export default function ResultsScreen({
     a.remove();
   };
 
-  const rows = data?.rows ?? [];
-  const total = data?.total ?? 0;
+  const rows = clientPageRows ?? data?.rows ?? [];
+  const total = clientFiltered ? clientFiltered.length : (data?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
@@ -209,16 +244,25 @@ export default function ResultsScreen({
         />
         <div style={{ flex: 1, minWidth: 240 }}>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: '-.025em' }}>
-            {data ? `${data.totalMatches} matching image${data.totalMatches === 1 ? '' : 's'}` : '…'}
+            {allRows
+              ? `${allRows.length} matching image${allRows.length === 1 ? '' : 's'}`
+              : data ? `${data.totalMatches} matching image${data.totalMatches === 1 ? '' : 's'}` : '…'}
           </h1>
-          {data && (
-            <p style={{ margin: '5px 0 0', fontSize: 13.5, color: '#6A7382' }}>
-              across <b style={{ color: '#16202E' }}>{data.matchedPages} pages</b> of{' '}
-              <span style={{ fontFamily: MONO }}>{data.domain}</span> · for{' '}
-              <span style={{ fontFamily: MONO }}>{data.referenceFilename}</span> ·{' '}
-              {data.method === 'pixel' ? 'Pixel' : 'Filename'} · ≥ {data.threshold}%
-            </p>
-          )}
+          {(data || summary) && (() => {
+            const domain = data?.domain ?? summary?.domain ?? '';
+            const ref = data?.referenceFilename ?? summary?.referenceFilename ?? '';
+            const method = data?.method ?? summary?.method ?? '';
+            const threshold = data?.threshold ?? summary?.threshold ?? 0;
+            const matchedPages = allRows ? new Set(allRows.map((r) => r.pageUrl)).size : (data?.matchedPages ?? 0);
+            return (
+              <p style={{ margin: '5px 0 0', fontSize: 13.5, color: '#6A7382' }}>
+                across <b style={{ color: '#16202E' }}>{matchedPages} pages</b> of{' '}
+                <span style={{ fontFamily: MONO }}>{domain}</span> · for{' '}
+                <span style={{ fontFamily: MONO }}>{ref}</span> ·{' '}
+                {method === 'pixel' ? 'Pixel' : 'Filename'} · ≥ {threshold}%
+              </p>
+            );
+          })()}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => exportAs('csv')} className="lift" style={exportBtnStyle}>
@@ -261,34 +305,20 @@ export default function ResultsScreen({
             }}
           />
         </div>
-        {data && (
-          <>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#2D5BF0',
-                background: '#EDF1FE',
-                borderRadius: 7,
-                padding: '6px 11px',
-              }}
-            >
-              {data.method === 'pixel' ? 'Pixel' : 'Filename'}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#5B6573',
-                background: '#F2F4F8',
-                borderRadius: 7,
-                padding: '6px 11px',
-              }}
-            >
-              ≥ {data.threshold}%
-            </span>
-          </>
-        )}
+        {(data || summary) && (() => {
+          const method = data?.method ?? summary?.method ?? '';
+          const threshold = data?.threshold ?? summary?.threshold ?? 0;
+          return (
+            <>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#2D5BF0', background: '#EDF1FE', borderRadius: 7, padding: '6px 11px' }}>
+                {method === 'pixel' ? 'Pixel' : 'Filename'}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#5B6573', background: '#F2F4F8', borderRadius: 7, padding: '6px 11px' }}>
+                ≥ {threshold}%
+              </span>
+            </>
+          );
+        })()}
         <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#8A93A1' }}>
           Showing <b style={{ color: '#16202E' }}>{start}–{end}</b> of {total}
         </div>

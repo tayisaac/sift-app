@@ -8,7 +8,7 @@ import ResultsScreen from '@/components/ResultsScreen';
 import { sanitizeDomain } from '@/lib/validate';
 import type { Screen, SearchSummary } from '@/components/types';
 import type { Snapshot } from '@/components/CrawlScreen';
-import type { ResultsResponse } from '@/components/ResultsScreen';
+import type { ResultRow } from '@/components/ResultsScreen';
 
 const DEFAULT_SETUP: SetupState = {
   domain: '',
@@ -33,7 +33,7 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [activeSummary, setActiveSummary] = useState<SearchSummary | null>(null);
   const [cachedSnap, setCachedSnap] = useState<Snapshot | null>(null);
-  const [cachedResults, setCachedResults] = useState<ResultsResponse | null>(null);
+  const [cachedAllRows, setCachedAllRows] = useState<ResultRow[] | null>(null);
 
   const updateSetup = <K extends keyof SetupState>(key: K, value: SetupState[K]) => {
     setSetup((prev) => {
@@ -101,7 +101,7 @@ export default function Home() {
       }
       setJobId(data.jobId);
       setCachedSnap(null);
-      setCachedResults(null);
+      setCachedAllRows(null);
       setActiveSummary({
         domain: domainResult.domain,
         method: setup.method,
@@ -117,9 +117,9 @@ export default function Home() {
   };
 
   const prefetchResults = (id: string) => {
-    fetch(`/api/jobs/${id}/results?sort=desc&q=&page=1&pageSize=9`)
+    fetch(`/api/jobs/${id}/results?sort=desc&q=&page=1&pageSize=10000`)
       .then((r) => r.json())
-      .then((d: ResultsResponse) => { if (d.rows) setCachedResults(d); })
+      .then((d: { rows?: ResultRow[] }) => { if (d.rows) setCachedAllRows(d.rows); })
       .catch(() => {});
   };
 
@@ -132,7 +132,7 @@ export default function Home() {
     setJobId(null);
     setActiveSummary(null);
     setCachedSnap(null);
-    setCachedResults(null);
+    setCachedAllRows(null);
     setScreen('setup');
   };
 
@@ -166,8 +166,8 @@ export default function Home() {
         <ResultsScreen
           jobId={jobId}
           onNewSearch={handleNewSearch}
-          initialData={cachedResults}
-          onDataFetched={setCachedResults}
+          allRows={cachedAllRows}
+          summary={activeSummary}
         />
       )}
     </div>
