@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { sanitizeDomain } from '@/lib/validate';
+import { parseStartUrl } from '@/lib/validate';
 import type { Method } from './types';
 
 const MONO = 'var(--font-ibm-plex-mono), monospace';
@@ -47,7 +47,7 @@ export default function SetupScreen({
   error: string | null;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const domainCheck = state.domain ? sanitizeDomain(state.domain) : null;
+  const domainCheck = state.domain ? parseStartUrl(state.domain) : null;
   const referenceName = state.file?.name ?? (state.filenameText || '');
   const canUsePixel = state.referenceMode === 'upload' && !!state.file;
   const methodLabel = state.method === 'pixel' ? 'Pixel' : 'Filename';
@@ -113,7 +113,7 @@ export default function SetupScreen({
               <h2 style={{ margin: 0, fontSize: 15.5, fontWeight: 700 }}>Target website</h2>
             </div>
             <p style={{ margin: '0 0 14px 30px', fontSize: 13, color: '#8A93A1' }}>
-              The root domain Sift will crawl. Only pages on this domain are followed.
+              Enter a domain or a URL with a path — Sift will only crawl pages under that path.
             </p>
             <div
               style={{
@@ -126,24 +126,10 @@ export default function SetupScreen({
                 boxShadow: '0 0 0 3px rgba(45,91,240,.10)',
               }}
             >
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 13px',
-                  background: '#F6F8FC',
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  color: '#8A93A1',
-                  borderRight: '1px solid #E6E9EE',
-                }}
-              >
-                https://
-              </span>
               <input
                 value={state.domain}
                 onChange={(e) => onChange('domain', e.target.value)}
-                placeholder="example.com"
+                placeholder="example.com/en/"
                 style={{
                   flex: 1,
                   border: 'none',
@@ -184,7 +170,9 @@ export default function SetupScreen({
                 >
                   {domainCheck?.ok ? '✓' : '!'}
                 </span>
-                {domainCheck?.ok ? 'Valid URL · respects robots.txt' : domainCheck?.error}
+                {domainCheck?.ok
+                  ? `Crawling: ${domainCheck.displayUrl} · respects robots.txt`
+                  : domainCheck?.error}
               </div>
             )}
           </section>
@@ -678,9 +666,9 @@ export default function SetupScreen({
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 12.5, color: '#8A93A1' }}>Domain</span>
+              <span style={{ fontSize: 12.5, color: '#8A93A1' }}>Start URL</span>
               <span style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: '#16202E' }}>
-                {state.domain || '—'}
+                {domainCheck?.ok ? domainCheck.displayUrl : (state.domain || '—')}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>

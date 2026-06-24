@@ -145,8 +145,11 @@ export async function runCrawl(jobId: string): Promise<void> {
   const maybeJob = getJob(jobId);
   if (!maybeJob) return;
   const job: Job = maybeJob;
-  const { domain, maxDepth, maxPages, parallel, referenceImage, referenceFilename, method, threshold } =
+  const { domain, rootUrl, pathPrefix, maxDepth, maxPages, parallel, referenceImage, referenceFilename, method, threshold } =
     job.options;
+
+  const underPrefix = (pathname: string): boolean =>
+    pathPrefix === '' || pathname === pathPrefix || pathname.startsWith(pathPrefix + '/');
 
   if (method === 'pixel') {
     if (!referenceImage) {
@@ -164,8 +167,6 @@ export async function runCrawl(jobId: string): Promise<void> {
       return;
     }
   }
-
-  const rootUrl = `https://${domain}/`;
 
   let robots: ReturnType<typeof robotsParser> | null = null;
   try {
@@ -198,6 +199,7 @@ export async function runCrawl(jobId: string): Promise<void> {
         try {
           const u = new URL(loc);
           if (u.hostname !== new URL(rootUrl).hostname) continue;
+          if (!underPrefix(u.pathname)) continue;
           u.hash = '';
           const key = u.toString();
           if (!visited.has(key)) {
@@ -300,6 +302,7 @@ export async function runCrawl(jobId: string): Promise<void> {
             abs.hash = '';
             if (abs.hostname !== hostname) return;
             if (abs.protocol !== 'http:' && abs.protocol !== 'https:') return;
+            if (!underPrefix(abs.pathname)) return;
             const key = abs.toString();
             if (visited.has(key)) return;
             visited.add(key);

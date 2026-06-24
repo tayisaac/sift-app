@@ -3,7 +3,9 @@ export type Method = 'filename' | 'pixel';
 export type JobStatus = 'running' | 'done' | 'cancelled' | 'error';
 
 export interface JobOptions {
-  domain: string; // hostname, e.g. "example.com"
+  domain: string;     // hostname, e.g. "www.example.com"
+  rootUrl: string;    // crawl start URL, e.g. "https://www.example.com/en/"
+  pathPrefix: string; // restrict to paths starting with this, e.g. "/en" (empty = whole site)
   method: Method;
   threshold: number; // 0-100
   maxDepth: number;

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createJob, notifyJob } from '@/lib/job-store';
 import { runCrawl } from '@/lib/crawler';
-import { sanitizeDomain } from '@/lib/validate';
+import { parseStartUrl } from '@/lib/validate';
 import type { Method } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   const form = await request.formData();
 
-  const domainRaw = String(form.get('domain') ?? '');
-  const domainResult = sanitizeDomain(domainRaw);
-  if (!domainResult.ok) {
-    return NextResponse.json({ error: domainResult.error }, { status: 400 });
+  const urlRaw = String(form.get('startUrl') ?? '');
+  const parsed = parseStartUrl(urlRaw);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
   const method = String(form.get('method') ?? 'pixel') as Method;
@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
   }
 
   const job = createJob({
-    domain: domainResult.domain,
+    domain: parsed.hostname,
+    rootUrl: parsed.rootUrl,
+    pathPrefix: parsed.pathPrefix,
     method,
     threshold,
     maxDepth,

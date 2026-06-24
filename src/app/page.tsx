@@ -5,7 +5,7 @@ import TopBar from '@/components/TopBar';
 import SetupScreen, { type SetupState } from '@/components/SetupScreen';
 import CrawlScreen from '@/components/CrawlScreen';
 import ResultsScreen from '@/components/ResultsScreen';
-import { sanitizeDomain } from '@/lib/validate';
+import { parseStartUrl } from '@/lib/validate';
 import type { Screen, SearchSummary } from '@/components/types';
 import type { Snapshot } from '@/components/CrawlScreen';
 import type { ResultRow } from '@/components/ResultsScreen';
@@ -66,9 +66,9 @@ export default function Home() {
 
   const handleStart = async () => {
     setStartError(null);
-    const domainResult = sanitizeDomain(setup.domain);
-    if (!domainResult.ok) {
-      setStartError(domainResult.error);
+    const parsed = parseStartUrl(setup.domain);
+    if (!parsed.ok) {
+      setStartError(parsed.error);
       return;
     }
     const referenceFilename = setup.referenceMode === 'upload' ? setup.file?.name ?? '' : setup.filenameText.trim();
@@ -84,7 +84,7 @@ export default function Home() {
     setStarting(true);
     try {
       const form = new FormData();
-      form.set('domain', domainResult.domain);
+      form.set('startUrl', parsed.rootUrl);
       form.set('method', setup.method);
       form.set('threshold', String(setup.threshold));
       form.set('maxDepth', String(setup.maxDepth));
@@ -103,7 +103,7 @@ export default function Home() {
       setCachedSnap(null);
       setCachedAllRows(null);
       setActiveSummary({
-        domain: domainResult.domain,
+        domain: parsed.displayUrl,
         method: setup.method,
         threshold: setup.threshold,
         referenceFilename,
