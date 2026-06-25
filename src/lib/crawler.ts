@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import robotsParser from 'robots-parser';
 import { getJob, notifyJob, pushLog, elapsedLabel } from './job-store';
-import { computeRefPixels, computeCandPixels, slideNCC, computeDHash, hashSimilarity, filenameSimilarity } from './similarity';
+import { computeRefPixels, computeCandPixels, slideNCC, computeDHash, hashSimilarityBestCrop, filenameSimilarity } from './similarity';
 import type { Job, ResultRow } from './types';
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -64,7 +64,8 @@ function extractImageUrls($: cheerio.CheerioAPI, pageUrl: string): string[] {
 
   $('img').each((_, el) => {
     add($(el).attr('src'));
-    const srcset = $(el).attr('srcset');
+    add($(el).attr('data-src'));
+    const srcset = $(el).attr('srcset') ?? $(el).attr('data-srcset');
     if (srcset) add(resolveSrcsetFirst(srcset, pageUrl));
   });
   $('source').each((_, el) => {
@@ -150,8 +151,7 @@ async function scoreImageHash(job: Job, imgUrl: string): Promise<number> {
   if (job.referenceHash == null) return -1;
   const buf = await fetchImageBuffer(imgUrl);
   if (!buf) return -1;
-  const candHash = await computeDHash(buf);
-  return hashSimilarity(job.referenceHash, candHash);
+  return hashSimilarityBestCrop(job.referenceHash, buf);
 }
 
 export async function runCrawl(jobId: string): Promise<void> {
@@ -228,9 +228,12 @@ export async function runCrawl(jobId: string): Promise<void> {
     } catch { /* sitemap unavailable */ }
   }
 
-  // Try sitemap advertised in robots.txt first, fall back to /sitemap.xml
+  // Try sitemap advertised in robots.txt, then path-scoped sitemap, then root /sitemap.xml
   const robotsSitemap = robots?.getSitemaps?.()?.[0];
   await loadSitemap(robotsSitemap ?? `https://${domain}/sitemap.xml`);
+  if (pathPrefix) {
+    await loadSitemap(`https://${domain}${pathPrefix}/sitemap.xml`);
+  }
 
   let active = 0;
   let resultIdCounter = 1;
@@ -311,19 +314,65 @@ export async function runCrawl(jobId: string): Promise<void> {
       }
 
       if (depth < maxDepth) {
+        const enqueueAbsolute = (abs: URL, linkDepth: number) => {
+          abs.hash = '';
+          if (abs.hostname !== hostname) return;
+          if (abs.protocol !== 'http:' && abs.protocol !== 'https:') return;
+          if (!underPrefix(abs.pathname)) return;
+          const key = abs.toString();
+          if (visited.has(key)) return;
+          visited.add(key);
+          queue.push({ url: key, depth: linkDepth });
+        };
+
+        // Discover locale-specific pages via hreflang (e.g. Next.js i18n sites).
+        $('link[rel="alternate"][hreflang]').each((_, el) => {
+          const href = $(el).attr('href');
+          if (!href) return;
+          try { enqueueAbsolute(new URL(href, url), depth + 1); } catch { /* skip */ }
+        });
+
+        // Extract sub-page paths from __NEXT_DATA__ for fully JS-rendered Next.js sites.
+        // Nav links are stored as CMS paths like "tr-en-sg/products/page" rather than <a> tags.
+        const nextDataEl = $('script#__NEXT_DATA__');
+        if (nextDataEl.length) {
+          try {
+            const nextJson = JSON.parse(nextDataEl.text());
+            const locale: unknown = nextJson?.locale;
+            if (typeof locale === 'string' && locale) {
+              const localeSlash = `${locale}/`;
+              const allStrings: string[] = [];
+              collectStrings(nextJson, allStrings);
+              for (const s of allStrings) {
+                if (!s.includes(localeSlash)) continue;
+                if (IMG_EXT_RE.test(s)) continue; // skip image paths
+                const idx = s.indexOf(localeSlash);
+                const pagePath = `/${s.slice(idx)}`.split('?')[0];
+                // Must have at least one sub-segment beyond the locale root
+                if (pagePath === `/${locale}/` || pagePath === `/${locale}`) continue;
+                try {
+                  enqueueAbsolute(new URL(`https://${hostname}${pagePath}`), depth + 1);
+                } catch { /* skip */ }
+              }
+            }
+          } catch { /* malformed JSON */ }
+        }
+
         $('a[href]').each((_, el) => {
           const href = $(el).attr('href');
           if (!href) return;
           try {
             const abs = new URL(href, url);
-            abs.hash = '';
-            if (abs.hostname !== hostname) return;
-            if (abs.protocol !== 'http:' && abs.protocol !== 'https:') return;
-            if (!underPrefix(abs.pathname)) return;
-            const key = abs.toString();
-            if (visited.has(key)) return;
-            visited.add(key);
-            queue.push({ url: key, depth: depth + 1 });
+            // For i18n sites: links like /about won't pass underPrefix when
+            // pathPrefix is /en-sg. Try prepending the prefix so they resolve.
+            if (pathPrefix && !underPrefix(abs.pathname) && abs.hostname === hostname) {
+              try {
+                const prefixed = new URL(`${abs.protocol}//${abs.host}${pathPrefix}${abs.pathname}${abs.search}`);
+                enqueueAbsolute(prefixed, depth + 1);
+                return;
+              } catch { /* fall through to regular enqueue */ }
+            }
+            enqueueAbsolute(abs, depth + 1);
           } catch {
             /* skip malformed link */
           }

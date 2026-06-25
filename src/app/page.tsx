@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import TopBar from '@/components/TopBar';
 import SetupScreen, { type SetupState } from '@/components/SetupScreen';
 import CrawlScreen from '@/components/CrawlScreen';
 import ResultsScreen from '@/components/ResultsScreen';
 import { parseStartUrl } from '@/lib/validate';
 import type { Screen, SearchSummary } from '@/components/types';
-import type { Snapshot, SnapshotResult } from '@/components/CrawlScreen';
+import type { Snapshot } from '@/components/CrawlScreen';
 import type { ResultRow } from '@/components/ResultsScreen';
 
 const DEFAULT_SETUP: SetupState = {
@@ -18,7 +18,7 @@ const DEFAULT_SETUP: SetupState = {
   dims: null,
   filenameText: '',
   method: 'pixel',
-  threshold: 80,
+  threshold: 75,
   maxDepth: 5,
   maxPages: 500,
   parallel: true,
@@ -116,15 +116,29 @@ export default function Home() {
     }
   };
 
-  const handleSnapUpdate = (snap: Snapshot) => {
-    setCachedSnap(snap);
-  };
+  useEffect(() => {
+    if (!jobId) return;
 
-  const handleResults = (rows: SnapshotResult[], meta: { domain: string; referenceFilename: string; method: string; threshold: number }) => {
-    setCachedAllRows(rows as ResultRow[]);
-    // Keep activeSummary in sync with what the server resolved (handles path-scoped URLs).
-    setActiveSummary((prev) => prev ? { ...prev, domain: meta.domain, referenceFilename: meta.referenceFilename, method: meta.method as 'pixel' | 'filename', threshold: meta.threshold } : prev);
-  };
+    const es = new EventSource(`/api/jobs/${jobId}/events`);
+    es.onmessage = (ev) => {
+      const data: Snapshot = JSON.parse(ev.data);
+      setCachedSnap(data);
+      if (data.status !== 'running') {
+        es.close();
+        if (data.results && data.domain != null && data.referenceFilename != null && data.method != null && data.threshold != null) {
+          setCachedAllRows(data.results as ResultRow[]);
+          setActiveSummary((prev) =>
+            prev
+              ? { ...prev, domain: data.domain!, referenceFilename: data.referenceFilename!, method: data.method as 'pixel' | 'filename' | 'hash', threshold: data.threshold! }
+              : prev
+          );
+        }
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
 
   const handleNewSearch = () => {
     setJobId(null);
@@ -155,9 +169,7 @@ export default function Home() {
           jobId={jobId}
           summary={activeSummary}
           onViewResults={() => setScreen('results')}
-          initialSnap={cachedSnap}
-          onSnapUpdate={handleSnapUpdate}
-          onResults={handleResults}
+          snap={cachedSnap}
         />
       )}
 

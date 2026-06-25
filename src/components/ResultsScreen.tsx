@@ -393,19 +393,26 @@ export default function ResultsScreen({
             >
               {r.imageUrl}
             </div>
-            <div
+            <a
+              href={r.pageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={r.pageUrl}
               style={{
                 fontFamily: MONO,
                 fontSize: 12.5,
-                color: '#6A7382',
+                color: '#2D5BF0',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                textDecoration: 'none',
+                display: 'block',
               }}
-              title={r.pageUrl}
+              onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
             >
               {r.pageUrl}
-            </div>
+            </a>
             <div>
               <span
                 style={{

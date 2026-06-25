@@ -93,6 +93,47 @@ export function hashSimilarity(refHash: bigint, candHash: bigint): number {
   return Math.round((1 - hammingDistance(refHash, candHash) / 64) * 100);
 }
 
+/**
+ * Crop-resistant hash similarity: tries the full image plus square crops along
+ * the long axis (left / center / right for landscape, top / center / bottom for
+ * portrait) and returns the highest similarity found.  This handles the common
+ * case where the reference is a tight crop of a hero banner on the candidate page.
+ */
+export async function hashSimilarityBestCrop(refHash: bigint, candBuffer: Buffer): Promise<number> {
+  const fullHash = await computeDHash(candBuffer);
+  let best = hashSimilarity(refHash, fullHash);
+  if (best >= 90) return best; // early exit — already very good
+
+  const meta = await sharp(candBuffer).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  const ratio = w > 0 && h > 0 ? Math.max(w, h) / Math.min(w, h) : 1;
+  if (ratio < 1.4) return best; // roughly square — no useful crops to try
+
+  const sq = Math.min(w, h);
+  const steps = 15; // sample 15 positions along the long axis for fine coverage
+  const crops: { left: number; top: number; width: number; height: number }[] = [];
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    if (w >= h) {
+      crops.push({ left: Math.round((w - sq) * t), top: 0, width: sq, height: sq });
+    } else {
+      crops.push({ left: 0, top: Math.round((h - sq) * t), width: sq, height: sq });
+    }
+  }
+
+  for (const region of crops) {
+    try {
+      const cropped = await sharp(candBuffer).extract(region).toBuffer();
+      const cropHash = await computeDHash(cropped);
+      const sim = hashSimilarity(refHash, cropHash);
+      if (sim > best) best = sim;
+      if (best >= 90) break;
+    } catch { /* skip bad crops */ }
+  }
+  return best;
+}
+
 // ── Sliding-window NCC (normalised cross-correlation) sizes ──────────────────
 // REF_SIZE: reference thumbnail side length.
 // CAND_SIZE: candidate thumbnail side length — larger so the ref kernel can slide over it.

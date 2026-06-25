@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { SearchSummary } from './types';
 
 const MONO = 'var(--font-ibm-plex-mono), monospace';
@@ -58,49 +58,13 @@ export default function CrawlScreen({
   jobId,
   summary,
   onViewResults,
-  initialSnap,
-  onSnapUpdate,
-  onResults,
+  snap,
 }: {
   jobId: string;
   summary: SearchSummary;
   onViewResults: () => void;
-  initialSnap?: Snapshot | null;
-  onSnapUpdate?: (snap: Snapshot) => void;
-  onResults?: (rows: SnapshotResult[], meta: { domain: string; referenceFilename: string; method: string; threshold: number }) => void;
+  snap: Snapshot | null;
 }) {
-  const [snap, setSnap] = useState<Snapshot | null>(initialSnap ?? null);
-  const esRef = useRef<EventSource | null>(null);
-
-  useEffect(() => {
-    // If we already have a terminal snapshot (cached from a previous visit), skip reconnecting.
-    if (initialSnap && initialSnap.status !== 'running') return;
-
-    const es = new EventSource(`/api/jobs/${jobId}/events`);
-    esRef.current = es;
-    es.onmessage = (ev) => {
-      const data: Snapshot = JSON.parse(ev.data);
-      setSnap(data);
-      onSnapUpdate?.(data);
-      if (data.status !== 'running') {
-        es.close();
-        if (data.results && data.domain != null && data.referenceFilename != null && data.method != null && data.threshold != null) {
-          onResults?.(data.results, {
-            domain: data.domain,
-            referenceFilename: data.referenceFilename,
-            method: data.method,
-            threshold: data.threshold,
-          });
-        }
-      }
-    };
-    es.onerror = () => {
-      es.close();
-    };
-    return () => es.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
-
   const cancel = () => {
     fetch(`/api/jobs/${jobId}/cancel`, { method: 'POST' }).catch(() => {});
   };
